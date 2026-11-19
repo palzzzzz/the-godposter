@@ -228,19 +228,26 @@ function renderDressing(c, W, H) {
   }
 
   // ---- title (Anton, auto-fit) ----
-  const title = (T.title || '').trim();
-  let baseY = stripTop - W * .004, titleTop = baseY, fs = 0, tx = 0, tw = 0;
+  // The subtitle hangs below the title ink (overlap <= 15% of its own height); room for it is reserved in the fit.
+  const title = (T.title || '').trim(), sub = (T.subtitle || '').trim();
+  let baseY = stripTop - W * .004, titleTop = baseY, fs = 0, tx = 0, tw = 0, subDraw = null;
   if (title) {
     const areaBottom = stripTop - W * .004, areaW = tr ? tr.w : W;
     const maxW = .92 * areaW, maxH = tr ? areaBottom - tr.y - W * .006 : Infinity;
     tx = (tr ? tr.x : 0) + .04 * areaW;
-    let m;
+    let m, reserve = 0;
     for (fs = .16 * W; fs > 8; fs -= Math.max(1, fs * .01)) {
       c.font = `${fs}px Anton, Impact, sans-serif`; m = c.measureText(title);
-      if (m.width + fs / 13 <= maxW && m.actualBoundingBoxAscent + .16 * fs + fs / 26 <= maxH) break;
+      reserve = m.actualBoundingBoxDescent + fs / 26;               // title ink below the baseline (incl. stroke)
+      if (sub) {
+        c.font = `${.42 * fs}px Yellowtail, cursive`; const sm = c.measureText(sub);
+        reserve += .85 * (sm.actualBoundingBoxAscent + sm.actualBoundingBoxDescent) + .004 * W;
+      } else reserve = Math.max(reserve, .16 * fs);
+      if (m.width + fs / 13 <= maxW && m.actualBoundingBoxAscent + reserve + fs / 26 <= maxH) break;
     }
     tw = m.width; const asc = m.actualBoundingBoxAscent;
-    baseY = areaBottom - .16 * fs; titleTop = baseY - asc - fs / 26;
+    baseY = areaBottom - reserve; titleTop = baseY - asc - fs / 26;
+    const inkBottom = baseY + m.actualBoundingBoxDescent + fs / 26;
     c.font = `${fs}px Anton, Impact, sans-serif`; c.lineWidth = fs / 13;
     // 1 hard shadow, 2 stroke, 3 gradient fill
     c.fillStyle = c.strokeStyle = '#1a0b26';
@@ -250,16 +257,13 @@ function renderDressing(c, W, H) {
     g.addColorStop(0, '#fff3d6'); g.addColorStop(.55, '#ffb347'); g.addColorStop(1, '#ff5e3a');
     c.fillStyle = g; c.fillText(title, tx, baseY);
 
-    // ---- subtitle (Yellowtail, overlapping lower-right) ----
-    const sub = (T.subtitle || '').trim();
-    if (sub) {
+    if (sub) {      // measured now, drawn last (after all other dressing) so nothing covers it
       let sfs = .42 * fs, sx = tx + .52 * tw; const limit = W * .96;
-      c.font = `${sfs}px Yellowtail, cursive`; let sw = c.measureText(sub).width;
-      if (sx + sw > limit) { sfs = Math.max(.28 * fs, sfs * (limit - sx) / sw); c.font = `${sfs}px Yellowtail, cursive`; sw = c.measureText(sub).width; }
-      sx = Math.min(sx, limit - sw);
-      c.save(); c.translate(sx, baseY + .06 * fs); c.rotate(-2 * Math.PI / 180);
-      c.shadowColor = '#ff4fa3'; c.shadowBlur = .012 * W; c.fillStyle = '#ff4fa3'; c.fillText(sub, 0, 0);
-      c.restore();
+      c.font = `${sfs}px Yellowtail, cursive`; let sm = c.measureText(sub);
+      if (sx + sm.width > limit) { sfs = Math.max(.28 * fs, sfs * (limit - sx) / sm.width); c.font = `${sfs}px Yellowtail, cursive`; sm = c.measureText(sub); }
+      sx = Math.min(sx, limit - sm.width);
+      const sh = sm.actualBoundingBoxAscent + sm.actualBoundingBoxDescent;
+      subDraw = { sub, sfs, x: sx, y: inkBottom - .15 * sh + sm.actualBoundingBoxAscent };
     }
   }
 
@@ -305,6 +309,13 @@ function renderDressing(c, W, H) {
   for (const b of bars) { c.fillRect(bx, bottom - bh, b * u, bh); bx += b * u + u; }
 
   drawSignature(c, W, H, k, gut, stripTop);
+  if (subDraw) {                                   // subtitle last, with a dark shadow + outline for legibility
+    c.save(); c.font = `${subDraw.sfs}px Yellowtail, cursive`; c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+    c.shadowColor = 'rgba(10,0,20,.85)'; c.shadowBlur = .008 * W; c.shadowOffsetX = .003 * W; c.shadowOffsetY = .004 * W;
+    c.lineWidth = Math.max(2, subDraw.sfs / 9); c.strokeStyle = '#1a0b26'; c.strokeText(subDraw.sub, subDraw.x, subDraw.y);
+    c.shadowColor = 'transparent'; c.fillStyle = '#ff6fb5'; c.fillText(subDraw.sub, subDraw.x, subDraw.y);
+    c.restore();
+  }
   c.restore();
 }
 
