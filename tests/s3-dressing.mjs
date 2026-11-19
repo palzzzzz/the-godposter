@@ -52,7 +52,7 @@ async function main() {
   await send('DOM.setFileInputFiles', { nodeId, files: [join(samples, 'heroine.jpg'), join(samples, 'yacht.jpg')] });
   for (let i = 0; i < 100 && (await ev('GODPOSTER.state.photos.length')) < 7; i++) await new Promise((r) => setTimeout(r, 100));
   check('5 bundled + 2 file-input photos loaded', (await ev('GODPOSTER.state.photos.length')) === 7);
-  await ev(`GODPOSTER.setLayout('hero-left'); GODPOSTER.setSize('landscape'); document.getElementById('spread').click(); GODPOSTER.render()`);
+  await ev(`GODPOSTER.setLayout('hero-left'); GODPOSTER.setSize('landscape'); document.getElementById('spread').click(); GODPOSTER.render(); const D=GODPOSTER.state.dressing; D.seal.on=false; D.wanted.on=false; D.chips.forEach(c=>{c.place='';c.starring=''})`); // S5 dressing off: this test isolates the S3 lettering
   check('layout HERO LEFT @1920x1080, no titleRect', await ev(`GODPOSTER.state.layoutId==='hero-left' && GODPOSTER.state.size.w===1920 && GODPOSTER.state.size.h===1080 && GODPOSTER.state.titleRect===null`));
 
   // helper installed in page: dressing-only render on a transparent canvas -> pixel analysis

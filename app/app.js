@@ -52,7 +52,30 @@ const state = {
     quote: 'PURE VICE ENERGY', quoteSource: 'THE FAMILY GAZETTE',
     toggles: { quote: true },
   },
+  dressing: {
+    seal: { on: true, line1: 'FAMILY', line2: 'SEAL' },
+    wanted: { on: true },
+    chips: [],           // parallel to panels: {place, time, mood, starring}
+  },
 };
+const DEFAULT_CHIPS = [
+  ['NEON MILE', '6:42 PM', 'NO WITNESSES', 'THE GHOST'], ['PORT LEONIDA', '7:15 PM', 'EASY MONEY', 'LA SIRENA'],
+  ['VICE BEACH', '8:03 PM', 'LAST SWIM', 'THE DRIVER'], ['KALAGA STRIP', '9:26 PM', 'FULL THROTTLE', 'THE ACCOUNTANT'],
+  ['THE DOCKS', '5:58 PM', 'QUIET BUSINESS', 'THE VIPER'], ['PALM HEIGHTS', '11:11 PM', 'LOUD NIGHT', 'THE PRIEST'],
+].map(([place, time, mood, starring]) => ({ place, time, mood, starring }));
+state.dressing.chips = DEFAULT_CHIPS.map((c) => ({ ...c }));
+const emptyChip = () => ({ place: '', time: '', mood: '', starring: '' });
+const POOLS = {
+  place: ['NEON MILE', 'PORT LEONIDA', 'VICE BEACH', 'KALAGA STRIP', 'THE DOCKS', 'PALM HEIGHTS', 'OCEAN DRIVE', 'COCONUT ROW', 'FLAMINGO PIER', 'SUNSET BOULEVARD', 'LITTLE HAVANA', 'MARINA DEL SOL', 'THE CASINO FLOOR', 'GATOR CREEK'],
+  time: ['6:42 PM', '7:15 PM', '8:03 PM', '9:26 PM', '5:58 PM', '11:11 PM', '12:01 AM', '1:37 AM', '3:15 AM', '4:44 AM', '10:05 PM', '2:22 AM', '6:06 AM', '7:59 PM'],
+  mood: ['NO WITNESSES', 'EASY MONEY', 'LAST SWIM', 'FULL THROTTLE', 'QUIET BUSINESS', 'LOUD NIGHT', 'DEBT COLLECTED', 'SLOW BURN', 'HIGH STAKES', 'BAD OMEN', 'SWEET REVENGE', 'ONE LAST JOB', 'COLD BLOOD', 'GOLDEN HOUR'],
+  starring: ['THE GHOST', 'LA SIRENA', 'THE DRIVER', 'THE ACCOUNTANT', 'THE VIPER', 'THE PRIEST', 'THE MAYOR', 'EL TIBURON', 'MISS DYNAMITE', 'THE BARBER', 'BIG TONY PALMS', 'THE WIDOW', 'LUCKY SEVEN', 'THE COUSIN'],
+};
+const TITLE_PAIRS = [
+  ['PALM HEAT', 'Loyalty is everything'], ['NEON OMERTA', 'Blood runs pink'], ['VICE CITY NIGHTS', 'Nobody leaves the family'],
+  ['SUNSET SYNDICATE', 'The tide always collects'], ['LAST CALL AT KALAGA', 'One more favour'], ['THE GOLD COAST JOB', 'Trust is a luxury'],
+  ['MIDNIGHT MARINA', 'Everybody owes somebody'], ['FLAMINGO FIX', 'Pretty on the outside'],
+];
 const layout = () => LAYOUTS.find((l) => l.id === state.layoutId);
 const status = (m) => { $('#status').textContent = m; };
 
@@ -62,6 +85,7 @@ function recompute() {
   state.panels = L.panels.map(px);
   state.titleRect = L.title ? px(L.title) : null;
   stage.width = w; stage.height = h;
+  while (state.dressing.chips.length < state.panels.length) state.dressing.chips.push(emptyChip());
 }
 
 // ---------- photo drawing ----------
@@ -279,7 +303,93 @@ function renderDressing(c, W, H) {
   let bx = W - mx - bars.reduce((a, b) => a + b * u + u, 0) + u;
   c.fillStyle = '#fff';
   for (const b of bars) { c.fillRect(bx, bottom - bh, b * u, bh); bx += b * u + u; }
+
+  drawSignature(c, W, H, k, gut, stripTop);
   c.restore();
+}
+
+// ---------- signature dressing (Session 5): chips, starring, wanted badge, family seal ----------
+function rrect(c, x, y, w, h, r) {
+  c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+}
+function burst(c, cx, cy, R, rot) {            // 12-point star polygon
+  c.beginPath();
+  for (let i = 0; i < 24; i++) {
+    const a = rot + i * Math.PI / 12, r = i % 2 ? R * .84 : R;
+    c[i ? 'lineTo' : 'moveTo'](cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+  }
+  c.closePath();
+}
+function fitFont(c, text, family, size, maxW) {  // shrink font until text fits maxW
+  c.font = `${size}px ${family}`; const w = c.measureText(text).width;
+  if (w > maxW) { size *= maxW / w; c.font = `${size}px ${family}`; }
+  return size;
+}
+function drawSignature(c, W, H, k, gut, stripTop) {
+  const D = state.dressing, GOLD = '#e8b931', CREAM = '#fff3d6', inset = .008 * W;
+  const ANTON = 'Anton, Impact, sans-serif', YT = 'Yellowtail, cursive';
+  // per-panel chips + starring
+  state.panels.forEach((p, i) => {
+    const ch = D.chips[i]; if (!ch) return;
+    const r = { x: p.x * k, y: p.y * k, w: p.w * k, h: p.h * k };
+    const place = (ch.place || '').trim(), sub = [ch.time, ch.mood].map((v) => (v || '').trim()).filter(Boolean).join(' - ');
+    if (place) {
+      c.save(); c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+      const f1 = .016 * W, f2 = .011 * W, pad = .007 * W, bar = .004 * W;
+      const maxTextW = r.w - 2 * (inset + gut) - pad * 2 - bar;
+      let a = f1, b = f2; c.font = `${a}px ${ANTON}`; let w1 = c.measureText(place).width;
+      c.font = `${b}px ${ANTON}`; let w2 = sub ? c.measureText(sub).width : 0;
+      const sc = Math.min(1, maxTextW / Math.max(w1, w2, 1)); a *= sc; b *= sc; w1 *= sc; w2 *= sc;
+      const bw = bar + pad * 2 + Math.max(w1, w2), bh = pad * 2 + a + (sub ? b + a * .3 : 0);
+      const bx = r.x + inset + gut, by = Math.min(r.y + r.h - inset - gut, stripTop - .006 * W) - bh;
+      c.fillStyle = 'rgba(8,6,14,.72)'; rrect(c, bx, by, bw, bh, .004 * W); c.fill();
+      c.fillStyle = '#ff2f92'; c.save(); rrect(c, bx, by, bw, bh, .004 * W); c.clip(); c.fillRect(bx, by, bar, bh); c.restore();
+      c.fillStyle = '#fff'; c.font = `${a}px ${ANTON}`; c.fillText(place, bx + bar + pad, by + pad + a * .88);
+      if (sub) { c.fillStyle = GOLD; c.font = `${b}px ${ANTON}`; c.fillText(sub, bx + bar + pad, by + pad + a + a * .3 + b * .88); }
+      c.restore();
+    }
+    const star = (ch.starring || '').trim();
+    if (star) {
+      c.save(); c.textAlign = 'left'; c.textBaseline = 'top';
+      const txt = `STARRING "${star}"`; fitFont(c, txt, YT, .02 * W, r.w - 2 * (inset + gut));
+      c.shadowColor = 'rgba(10,4,16,.85)'; c.shadowBlur = .006 * W; c.shadowOffsetX = .0015 * W; c.shadowOffsetY = .0025 * W;
+      c.fillStyle = GOLD; c.fillText(txt, r.x + inset + gut, r.y + inset + gut); c.restore();
+    }
+  });
+
+  // wanted pill: top-right inside the frame, left of the seal when both are on
+  const R = .055 * W, sx = Math.min(W - gut - inset - R, Math.max(gut + inset + R, .90 * W)), sy = Math.min(H - R - gut, Math.max(gut + inset + R, .13 * H));
+  if (D.wanted.on) {
+    c.save(); c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+    const fs = .018 * W, ls = fs * .22, sp = .0165 * W, ph = .034 * W, pad = .014 * W;
+    c.font = `${fs}px ${ANTON}`; c.letterSpacing = `${ls}px`; const tw = c.measureText('WANTED').width;
+    const pw = pad * 2 + tw + .012 * W + sp * 5;
+    const right = D.seal.on ? sx - R - .008 * W : W - gut - inset, px = right - pw, py = gut + inset + .004 * W;
+    c.fillStyle = '#000'; rrect(c, px, py, pw, ph, ph / 2); c.fill();
+    c.strokeStyle = 'rgba(232,185,49,.6)'; c.lineWidth = Math.max(1, W * .0012); c.stroke();
+    c.fillStyle = CREAM; c.fillText('WANTED', px + pad, py + ph / 2 + fs * .36);
+    c.letterSpacing = '0px'; c.fillStyle = GOLD;
+    for (let i = 0; i < 5; i++) { starPath(c, px + pad + tw + .012 * W + sp * i + sp / 2, py + ph / 2 + .0005 * W, .0068 * W); c.fill(); }
+    c.restore();
+  }
+
+  // family seal
+  const l1 = (D.seal.line1 || '').trim(), l2 = (D.seal.line2 || '').trim();
+  if (D.seal.on) {
+    c.save();
+    c.shadowColor = 'rgba(0,0,0,.5)'; c.shadowBlur = .006 * W; c.fillStyle = '#e0189a';
+    burst(c, sx, sy, R, 0); c.fill(); burst(c, sx, sy, R, Math.PI / 12); c.fill();
+    c.shadowColor = 'transparent'; c.strokeStyle = GOLD; c.lineWidth = Math.max(2, R * .07);
+    c.beginPath(); c.arc(sx, sy, R * .74, 0, Math.PI * 2); c.stroke();
+    c.fillStyle = GOLD; for (let i = -1; i <= 1; i++) { starPath(c, sx + i * R * .17, sy - R * .4, R * .07); c.fill(); }
+    c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = CREAM;
+    const maxW = R * 1.1, f = R * .3, n = (l1 ? 1 : 0) + (l2 ? 1 : 0);
+    let y = sy + (n === 2 ? -R * .02 : R * .08);
+    if (l1) { fitFont(c, l1, ANTON, f, maxW); c.fillText(l1, sx, y); y += R * .3; }
+    if (l2) { fitFont(c, l2, ANTON, f, maxW); c.fillText(l2, sx, y); }
+    c.restore();
+  }
 }
 
 // ---------- assignment ----------
@@ -398,8 +508,40 @@ function buildStatic() {
   }
   $('#t-quoteOn').checked = state.texts.toggles.quote;
   $('#t-quoteOn').addEventListener('change', (e) => { state.texts.toggles.quote = e.target.checked; render(); });
+  // dressing controls (Session 5)
+  $('#d-seal').addEventListener('change', (e) => { state.dressing.seal.on = e.target.checked; render(); });
+  $('#d-wanted').addEventListener('change', (e) => { state.dressing.wanted.on = e.target.checked; render(); });
+  for (const k of CHIP_FIELDS) {
+    $('#c-' + k).addEventListener('input', (e) => { chipOf(state.selectedPanel)[k] = e.target.value; render(); });
+  }
+  $('#shuffleChip').onclick = () => { shuffleChip(state.selectedPanel); syncUI(); render(); status(`Shuffled chip for panel ${state.selectedPanel + 1}.`); };
+  $('#offer').onclick = () => makeOffer();
   $('#exportAll').onclick = () => window.exportAll();
   $('#exportOne').onclick = () => exportPNG(state.size.w, state.size.h);
+}
+
+// ---------- chips, shuffle, offer (Session 5) ----------
+const CHIP_FIELDS = ['place', 'time', 'mood', 'starring'];
+const pick = (arr, not) => { const o = arr.filter((v) => v !== not); return o[Math.floor(Math.random() * o.length)]; };
+function chipOf(i) {
+  while (state.dressing.chips.length <= i) state.dressing.chips.push(emptyChip());
+  return state.dressing.chips[i];
+}
+function shuffleChip(i) { const ch = chipOf(i); for (const k of CHIP_FIELDS) ch[k] = pick(POOLS[k], ch[k]); }
+function makeOffer() {
+  setLayout(pick(LAYOUTS.map((l) => l.id), state.layoutId));
+  const G = pick(GRADES, GRADES.find((x) => x.id === state.grade.id));
+  const [strength, contrast, saturation, grain, vignette] = G.d;
+  Object.assign(state.grade, { id: G.id, strength, contrast, saturation, grain, vignette });
+  state.panels.forEach((_, i) => shuffleChip(i));
+  const [title, subtitle] = pickPair();
+  state.texts.title = title; state.texts.subtitle = subtitle;
+  syncUI(); render();
+  status(`Offer made: ${layout().name}, ${G.name}, "${title}".`);
+}
+function pickPair() {
+  const o = TITLE_PAIRS.filter((p) => p[0] !== state.texts.title);
+  return o[Math.floor(Math.random() * o.length)];
 }
 
 // ---------- export (Session 4) ----------
@@ -468,6 +610,12 @@ function syncUI() {
     const el = $('#g-' + k); el.value = state.grade[k];
     el.previousElementSibling.textContent = state.grade[k] + (k === 'grain' || k === 'vignette' ? '' : '%');
   }
+  const setv = (el, v) => { if (el.value !== v) el.value = v; };
+  setv($('#t-title'), state.texts.title); setv($('#t-subtitle'), state.texts.subtitle);
+  $('#d-seal').checked = state.dressing.seal.on; $('#d-wanted').checked = state.dressing.wanted.on;
+  const ch = chipOf(state.selectedPanel);
+  for (const k of CHIP_FIELDS) setv($('#c-' + k), ch[k]);
+  $('#chipPanel').textContent = state.selectedPanel === 0 ? 'HERO' : 'PANEL ' + (state.selectedPanel + 1);
   const t = state.transforms[state.selectedPanel];
   $('#zoom').value = t ? t.zoom : 1; $('#zoomOut').textContent = (t ? t.zoom : 1).toFixed(2) + 'x';
 }

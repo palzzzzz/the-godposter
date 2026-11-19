@@ -42,6 +42,7 @@
   <section class="centre"><canvas id="stage" width="1920" height="1080"></canvas></section>
 
   <aside class="rail right">
+    <button class="offer" id="offer">MAKE ME AN OFFER</button>
     <h2>LAYOUT</h2>
     <div class="layouts" id="layouts"></div>
     <h2>CAPTION</h2>
@@ -52,6 +53,17 @@
       <label class="field">QUOTE <input type="text" id="t-quote" autocomplete="off" spellcheck="false"></label>
       <label class="field">QUOTE SOURCE <input type="text" id="t-quoteSource" autocomplete="off" spellcheck="false"></label>
       <label class="check"><input type="checkbox" id="t-quoteOn"> SHOW QUOTE LINE</label>
+    </div>
+    <h2>DRESSING</h2>
+    <div class="caption">
+      <label class="check"><input type="checkbox" id="d-seal" checked> FAMILY SEAL</label>
+      <label class="check"><input type="checkbox" id="d-wanted" checked> WANTED STARS</label>
+      <div class="hint">CHIP FOR <b id="chipPanel">HERO</b> (selected panel)</div>
+      <label class="field">PLACE <input type="text" id="c-place" autocomplete="off" spellcheck="false"></label>
+      <label class="field">TIME <input type="text" id="c-time" autocomplete="off" spellcheck="false"></label>
+      <label class="field">MOOD <input type="text" id="c-mood" autocomplete="off" spellcheck="false"></label>
+      <label class="field">STARRING <input type="text" id="c-starring" autocomplete="off" spellcheck="false"></label>
+      <button class="btn" id="shuffleChip">SHUFFLE CHIP</button>
     </div>
     <h2>GRADE</h2>
     <div class="grades" id="grades"></div>
