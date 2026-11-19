@@ -1,3 +1,4 @@
+/* THE GODPOSTER - stylesheet for the poster studio shell (topbar, rails, canvas stage, bottom bar). */
 :root{--bg:#0e0e11;--panel:#16161b;--line:#2a2a32;--text:#e9e6dc;--dim:#8b8a93;--gold:#e8b931;--pink:#ff2f92}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
@@ -57,3 +58,4 @@ h2{margin:8px 0 0;font:800 13px Impact,sans-serif;letter-spacing:.18em;color:var
 @media(max-width:900px){.studio{grid-template-columns:1fr;overflow:auto}.centre{min-height:50vh}}
 .offer{background:linear-gradient(180deg,#ffd45a,#e8b931);color:#1a1205;border:0;border-radius:4px;padding:14px 10px;font:800 17px Impact,sans-serif;letter-spacing:.14em;cursor:pointer;box-shadow:0 0 0 2px #0b0b0e,0 0 0 4px #e8b931}
 .offer:hover{filter:brightness(1.08)}
+button:focus-visible,input:focus-visible,select:focus-visible,.field input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}

@@ -700,7 +700,7 @@ stage.addEventListener('dblclick', (e) => {
   syncUI(); render(); status(`Panel ${i + 1} re-centred.`);
 });
 
-// ---------- fonts (vendored under app/fonts, see OFL-Anton.txt / LICENSE-Yellowtail.txt) ----------
+// ---------- fonts (vendored under app/fonts, see LICENSES.md) ----------
 const FONT_FILES = [['Anton', './fonts/Anton-Regular.ttf'], ['Yellowtail', './fonts/Yellowtail-Regular.ttf']];
 const fontsReady = Promise.allSettled(FONT_FILES.map(async ([family, url]) => {
   const f = new FontFace(family, `url(${url})`); await f.load(); document.fonts.add(f);

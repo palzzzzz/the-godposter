@@ -22,7 +22,7 @@ Run `node serve.ts` from the repository root and open the address it prints (or 
 
 ## Fonts
 
-Vendored under `app/fonts/`: **Anton** (SIL OFL 1.1, `OFL-Anton.txt`) and **Yellowtail** (Apache 2.0, `LICENSE-Yellowtail.txt`). Loaded with the FontFace API; no network.
+Vendored under `app/fonts/`: **Anton** (SIL OFL 1.1) and **Yellowtail** (Apache 2.0); full licence texts in `app/fonts/LICENSES.md`. Loaded with the FontFace API; no network.
 
 ## Tests
 
