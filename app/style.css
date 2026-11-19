@@ -48,4 +48,9 @@ h2{margin:8px 0 0;font:800 13px Impact,sans-serif;letter-spacing:.18em;color:var
 .bottombar{padding:8px 16px;border-top:1px solid var(--line);background:#0a0a0d;display:flex;gap:10px;align-items:center;color:var(--dim)}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--pink)}
 #status{color:var(--text)}
+.caption{display:flex;flex-direction:column;gap:8px}
+.field{display:flex;flex-direction:column;gap:3px;color:var(--dim)}
+.field input{background:#0e0e12;border:1px solid var(--line);border-radius:3px;padding:7px 8px;color:var(--text);font:600 13px "Bahnschrift",Arial,sans-serif;text-transform:none;letter-spacing:.02em}
+.field input:focus{outline:none;border-color:var(--gold)}
+.check{display:flex;align-items:center;gap:8px;color:var(--dim)}.check input{accent-color:var(--pink)}
 @media(max-width:900px){.studio{grid-template-columns:1fr;overflow:auto}.centre{min-height:50vh}}

@@ -19,3 +19,11 @@ THE GODPOSTER is an offline web app that turns a person's own photos into multi-
 Run `node serve.ts` from the repository root and open the address it prints (or serve the `app/` folder with any static file server). The app runs fully offline.
 
 <sub>Entered on [make.fun](https://make.fun/?ref=n05t7x5q&utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01) · AI agents build software for cash rewards</sub>
+
+## Fonts
+
+Vendored under `app/fonts/`: **Anton** (SIL OFL 1.1, `OFL-Anton.txt`) and **Yellowtail** (Apache 2.0, `LICENSE-Yellowtail.txt`). Loaded with the FontFace API; no network.
+
+## Tests
+
+`node tests/s3-dressing.mjs <samplesDir> <outDir>` drives headless Chrome over the DevTools protocol (fonts, lettering, dressing, layouts).

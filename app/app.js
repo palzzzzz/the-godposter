@@ -47,6 +47,11 @@ const state = {
   layoutId: 'hero-left',
   size: { ...SIZES.landscape },
   grade: { id: 'vice-sunset', strength: 70, contrast: 110, saturation: 125, grain: 30, vignette: 45 },
+  texts: {
+    title: 'PALM HEAT', subtitle: 'Loyalty is everything', tagline: 'ONE COAST - NO RULES - COMING SOON',
+    quote: 'PURE VICE ENERGY', quoteSource: 'THE FAMILY GAZETTE',
+    toggles: { quote: true },
+  },
 };
 const layout = () => LAYOUTS.find((l) => l.id === state.layoutId);
 const status = (m) => { $('#status').textContent = m; };
@@ -158,9 +163,124 @@ function render(c = ctx, W = state.size.w, H = state.size.h, opts = { ui: true }
   }
   c.restore();
   // 5 dressing (Session 3)
-  renderDressing(c, W, H);
+  renderDressing(c, W, H, opts);
 }
-function renderDressing(ctx, W, H) { /* Session 3: lettering and dressing */ }
+// ---------- dressing: lettering, tagline strip, microprint, barcode (Session 3) ----------
+// All sizes are relative to the canvas width W. Draws nothing UI-related, so {ui:false} output is identical.
+function seededRng(str) { // FNV-1a hash -> mulberry32, so the barcode is stable per title
+  let h = 2166136261 >>> 0;
+  for (const ch of str) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return () => {
+    h = (h + 0x6D2B79F5) >>> 0; let t = h;
+    t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function starPath(c, cx, cy, R) {
+  c.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? R * .42 : R;
+    c[i ? 'lineTo' : 'moveTo'](cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+  }
+  c.closePath();
+}
+function renderDressing(c, W, H) {
+  const T = state.texts, gut = Math.max(3, Math.round(W / 320));
+  const k = state.size.w ? W / state.size.w : 1;               // titleRect is stored in state.size pixels
+  const tr = state.titleRect
+    ? { x: state.titleRect.x * k, y: state.titleRect.y * k, w: state.titleRect.w * k, h: state.titleRect.h * k } : null;
+  const mx = W * .04, stripH = W * .052, bottom = H - gut - W * .006, stripTop = bottom - stripH;
+  const GOLD = '#e8b931', CREAM = '#fff3d6';
+  c.save(); c.setTransform(1, 0, 0, 1, 0, 0);
+  c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.filter = 'none';
+  c.textAlign = 'left'; c.textBaseline = 'alphabetic'; c.lineJoin = 'round'; c.setLineDash([]);
+
+  // scrim + black band (only when no title rectangle is reserved by the layout)
+  if (!tr) {
+    const g = c.createLinearGradient(0, H * .82, 0, H);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.55)');
+    c.fillStyle = g; c.fillRect(0, H * .82, W, H * .18);
+    c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(gut, stripTop - W * .004, W - gut * 2, H - gut - stripTop + W * .004);
+  }
+
+  // ---- title (Anton, auto-fit) ----
+  const title = (T.title || '').trim();
+  let baseY = stripTop - W * .004, titleTop = baseY, fs = 0, tx = 0, tw = 0;
+  if (title) {
+    const areaBottom = stripTop - W * .004, areaW = tr ? tr.w : W;
+    const maxW = .92 * areaW, maxH = tr ? areaBottom - tr.y - W * .006 : Infinity;
+    tx = (tr ? tr.x : 0) + .04 * areaW;
+    let m;
+    for (fs = .16 * W; fs > 8; fs -= Math.max(1, fs * .01)) {
+      c.font = `${fs}px Anton, Impact, sans-serif`; m = c.measureText(title);
+      if (m.width + fs / 13 <= maxW && m.actualBoundingBoxAscent + .16 * fs + fs / 26 <= maxH) break;
+    }
+    tw = m.width; const asc = m.actualBoundingBoxAscent;
+    baseY = areaBottom - .16 * fs; titleTop = baseY - asc - fs / 26;
+    c.font = `${fs}px Anton, Impact, sans-serif`; c.lineWidth = fs / 13;
+    // 1 hard shadow, 2 stroke, 3 gradient fill
+    c.fillStyle = c.strokeStyle = '#1a0b26';
+    c.strokeText(title, tx + .006 * W, baseY + .008 * W); c.fillText(title, tx + .006 * W, baseY + .008 * W);
+    c.strokeStyle = '#2b1030'; c.strokeText(title, tx, baseY);
+    const g = c.createLinearGradient(0, baseY - asc, 0, baseY);
+    g.addColorStop(0, '#fff3d6'); g.addColorStop(.55, '#ffb347'); g.addColorStop(1, '#ff5e3a');
+    c.fillStyle = g; c.fillText(title, tx, baseY);
+
+    // ---- subtitle (Yellowtail, overlapping lower-right) ----
+    const sub = (T.subtitle || '').trim();
+    if (sub) {
+      let sfs = .42 * fs, sx = tx + .52 * tw; const limit = W * .96;
+      c.font = `${sfs}px Yellowtail, cursive`; let sw = c.measureText(sub).width;
+      if (sx + sw > limit) { sfs = Math.max(.28 * fs, sfs * (limit - sx) / sw); c.font = `${sfs}px Yellowtail, cursive`; sw = c.measureText(sub).width; }
+      sx = Math.min(sx, limit - sw);
+      c.save(); c.translate(sx, baseY + .06 * fs); c.rotate(-2 * Math.PI / 180);
+      c.shadowColor = '#ff4fa3'; c.shadowBlur = .012 * W; c.fillStyle = '#ff4fa3'; c.fillText(sub, 0, 0);
+      c.restore();
+    }
+  }
+
+  // ---- quote line (stars + bold italic small caps), above the title ----
+  const quote = (T.quote || '').trim(), qsrc = (T.quoteSource || '').trim();
+  if (T.toggles.quote && (quote || qsrc)) {
+    const q = .018 * W, y = titleTop - .016 * W, sp = .0215 * W;
+    c.save(); c.shadowColor = 'rgba(0,0,0,.8)'; c.shadowBlur = .006 * W;
+    c.fillStyle = GOLD;
+    for (let i = 0; i < 5; i++) { starPath(c, mx + sp * i + sp * .4, y - q * .36, .0088 * W); c.fill(); }
+    c.font = `${q}px Anton, Impact, sans-serif`; c.fontVariantCaps = 'small-caps'; c.letterSpacing = `${q * .12}px`;
+    c.translate(mx + sp * 5 + .004 * W, y); c.transform(1, 0, -.2, 1, 0, 0);   // synthetic italic
+    c.strokeStyle = '#fff'; c.lineWidth = q / 40; c.fillStyle = '#fff';       // thin stroke = synthetic bold
+    let x = 0;
+    if (quote) { c.strokeText(quote, 0, 0); c.fillText(quote, 0, 0); x = c.measureText(quote).width; }
+    if (qsrc) {
+      if (quote) { c.fillStyle = '#fff'; c.fillText(' - ', x, 0); x += c.measureText(' - ').width; }
+      c.fillStyle = c.strokeStyle = GOLD; c.strokeText(qsrc, x, 0); c.fillText(qsrc, x, 0);
+    }
+    c.restore();
+  }
+
+  // ---- tagline strip: gold rules + centred tagline, microprint, barcode ----
+  const tag = (T.tagline || '').trim();
+  if (tag) {
+    const tf = .02 * W, ty = stripTop + .016 * W, ls = tf * .18;
+    c.save(); c.font = `${tf}px Anton, Impact, sans-serif`; c.letterSpacing = `${ls}px`; c.textBaseline = 'middle';
+    const w = c.measureText(tag).width - ls, x0 = W / 2 - w / 2;
+    c.fillStyle = CREAM; c.fillText(tag, x0, ty);
+    c.fillStyle = GOLD; const rh = Math.max(1, W * .0012), gap = .02 * W;
+    c.fillRect(mx, ty - rh / 2, Math.max(0, x0 - gap - mx), rh);
+    c.fillRect(x0 + w + gap, ty - rh / 2, Math.max(0, W - mx - (x0 + w + gap)), rh);
+    c.restore();
+  }
+  c.save(); c.font = `${.008 * W}px Anton, Impact, sans-serif`; c.letterSpacing = `${.008 * W * .12}px`;
+  c.fillStyle = 'rgba(255,255,255,.55)';
+  c.fillText('THE GODPOSTER - A COVER ART STUDIO - PRINTED FROM YOUR OWN PHOTOS - CAT. GP-2026', mx, bottom - .001 * W);
+  c.restore();
+  const rnd = seededRng(title || 'GODPOSTER'), u = Math.max(1, Math.round(.0011 * W)), bh = .02 * W;
+  const bars = Array.from({ length: 40 }, () => 1 + Math.floor(rnd() * 3));
+  let bx = W - mx - bars.reduce((a, b) => a + b * u + u, 0) + u;
+  c.fillStyle = '#fff';
+  for (const b of bars) { c.fillRect(bx, bottom - bh, b * u, bh); bx += b * u + u; }
+  c.restore();
+}
 
 // ---------- assignment ----------
 const fresh = () => ({ dx: 0, dy: 0, zoom: 1 });
@@ -271,6 +391,13 @@ function buildStatic() {
     autoAssign(); resetTransforms(); syncUI(); render();
     status(`Spread ${state.photos.length} photo${state.photos.length > 1 ? 's' : ''} across ${state.panels.length} panels.`);
   };
+  // caption inputs: re-render on every keystroke
+  for (const k of ['title', 'subtitle', 'tagline', 'quote', 'quoteSource']) {
+    const el = $('#t-' + k); el.value = state.texts[k];
+    el.addEventListener('input', (e) => { state.texts[k] = e.target.value; render(); });
+  }
+  $('#t-quoteOn').checked = state.texts.toggles.quote;
+  $('#t-quoteOn').addEventListener('change', (e) => { state.texts.toggles.quote = e.target.checked; render(); });
   $('#exportAll').onclick = () => {
     if (typeof window.exportAll === 'function') window.exportAll(); else status('Export arrives in Session 4.');
   };
@@ -341,6 +468,18 @@ stage.addEventListener('dblclick', (e) => {
   syncUI(); render(); status(`Panel ${i + 1} re-centred.`);
 });
 
+// ---------- fonts (vendored under app/fonts, see OFL-Anton.txt / LICENSE-Yellowtail.txt) ----------
+const FONT_FILES = [['Anton', './fonts/Anton-Regular.ttf'], ['Yellowtail', './fonts/Yellowtail-Regular.ttf']];
+const fontsReady = Promise.allSettled(FONT_FILES.map(async ([family, url]) => {
+  const f = new FontFace(family, `url(${url})`); await f.load(); document.fonts.add(f);
+})).then((r) => {
+  const bad = r.map((x, i) => (x.status === 'rejected' ? FONT_FILES[i][0] : null)).filter(Boolean);
+  if (bad.length) status(`Font failed to load: ${bad.join(', ')} - using fallbacks.`);
+});
+document.fonts.addEventListener('loadingdone', () => render());   // re-render whenever a font arrives
+
 // ---------- boot ----------
-buildStatic(); recompute(); resetTransforms(); autoAssign(); syncUI(); render();
-window.GODPOSTER = { state, render, renderDressing: (...a) => renderDressing(...a), LAYOUTS, GRADES, SIZES, setSize, setLayout, addFiles, status };
+buildStatic(); recompute(); resetTransforms(); autoAssign(); syncUI();
+await fontsReady;                                                  // first render waits for the lettering fonts
+render();
+window.GODPOSTER = { fontsReady, state, render, renderDressing: (...a) => renderDressing(...a), LAYOUTS, GRADES, SIZES, setSize, setLayout, addFiles, status };
