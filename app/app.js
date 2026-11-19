@@ -231,6 +231,7 @@ function renderDressing(c, W, H) {
   // The subtitle hangs below the title ink (overlap <= 15% of its own height); room for it is reserved in the fit.
   const title = (T.title || '').trim(), sub = (T.subtitle || '').trim();
   let baseY = stripTop - W * .004, titleTop = baseY, fs = 0, tx = 0, tw = 0, subDraw = null;
+  const zones = { title: null, sub: null };   // exclusion zones handed to drawSignature
   if (title) {
     const areaBottom = stripTop - W * .004, areaW = tr ? tr.w : W;
     const maxW = .92 * areaW, maxH = tr ? areaBottom - tr.y - W * .006 : Infinity;
@@ -248,6 +249,7 @@ function renderDressing(c, W, H) {
     tw = m.width; const asc = m.actualBoundingBoxAscent;
     baseY = areaBottom - reserve; titleTop = baseY - asc - fs / 26;
     const inkBottom = baseY + m.actualBoundingBoxDescent + fs / 26;
+    zones.title = tr ? { ...tr } : { x: tx - fs / 26, y: titleTop, w: tw + fs / 13 + .006 * W, h: inkBottom - titleTop + .008 * W };
     c.font = `${fs}px Anton, Impact, sans-serif`; c.lineWidth = fs / 13;
     // 1 hard shadow, 2 stroke, 3 gradient fill
     c.fillStyle = c.strokeStyle = '#1a0b26';
@@ -264,6 +266,7 @@ function renderDressing(c, W, H) {
       sx = Math.min(sx, limit - sm.width);
       const sh = sm.actualBoundingBoxAscent + sm.actualBoundingBoxDescent;
       subDraw = { sub, sfs, x: sx, y: inkBottom - .15 * sh + sm.actualBoundingBoxAscent };
+      const pd = .006 * W; zones.sub = { x: sx - pd, y: subDraw.y - sm.actualBoundingBoxAscent - pd, w: sm.width + 2 * pd, h: sh + 2 * pd };
     }
   }
 
@@ -308,7 +311,7 @@ function renderDressing(c, W, H) {
   c.fillStyle = '#fff';
   for (const b of bars) { c.fillRect(bx, bottom - bh, b * u, bh); bx += b * u + u; }
 
-  drawSignature(c, W, H, k, gut, stripTop);
+  drawSignature(c, W, H, k, gut, stripTop, zones);
   if (subDraw) {                                   // subtitle last, with a dark shadow + outline for legibility
     c.save(); c.font = `${subDraw.sfs}px Yellowtail, cursive`; c.textAlign = 'left'; c.textBaseline = 'alphabetic';
     c.shadowColor = 'rgba(10,0,20,.85)'; c.shadowBlur = .008 * W; c.shadowOffsetX = .003 * W; c.shadowOffsetY = .004 * W;
@@ -337,14 +340,39 @@ function fitFont(c, text, family, size, maxW) {  // shrink font until text fits 
   if (w > maxW) { size *= maxW / w; c.font = `${size}px ${family}`; }
   return size;
 }
-function drawSignature(c, W, H, k, gut, stripTop) {
+const rectsHit = (a, b) => !!b && a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+const circleHit = (a, o) => { const nx = Math.max(a.x, Math.min(o.x, a.x + a.w)), ny = Math.max(a.y, Math.min(o.y, a.y + a.h)); return (nx - o.x) ** 2 + (ny - o.y) ** 2 < o.r * o.r; };
+function drawSignature(c, W, H, k, gut, stripTop, zones = {}) {
   const D = state.dressing, GOLD = '#e8b931', CREAM = '#fff3d6', inset = .008 * W;
   const ANTON = 'Anton, Impact, sans-serif', YT = 'Yellowtail, cursive';
+  // seal + wanted geometry first, so chips/starring can keep out of them
+  const R = .055 * W, sx = Math.min(W - gut - inset - R, Math.max(gut + inset + R, .90 * W)), sy = Math.min(H - R - gut, Math.max(gut + inset + R, .13 * H));
+  let pill = null;
+  if (D.wanted.on) {
+    const fs = .018 * W, ls = fs * .22, sp = .0165 * W, ph = .034 * W, pad = .014 * W;
+    c.save(); c.font = `${fs}px ${ANTON}`; c.letterSpacing = `${ls}px`; const tw = c.measureText('WANTED').width; c.restore();
+    const pw = pad * 2 + tw + .012 * W + sp * 5, right = D.seal.on ? sx - R - .008 * W : W - gut - inset;
+    pill = { x: right - pw, y: gut + inset + .004 * W, w: pw, h: ph, fs, ls, sp, pad, tw };
+  }
+  const sealZone = D.seal.on ? { x: sx, y: sy, r: R * 1.02 } : null;
+  const padZ = (z, d) => z && { x: z.x - d, y: z.y - d, w: z.w + 2 * d, h: z.h + 2 * d };
+  const pillZone = padZ(pill, .004 * W);
   // per-panel chips + starring
   state.panels.forEach((p, i) => {
     const ch = D.chips[i]; if (!ch) return;
     const r = { x: p.x * k, y: p.y * k, w: p.w * k, h: p.h * k };
     const place = (ch.place || '').trim(), sub = [ch.time, ch.mood].map((v) => (v || '').trim()).filter(Boolean).join(' - ');
+    const star = (ch.starring || '').trim();
+    const drawStar = () => {
+      if (!star) return;
+      c.save(); c.textAlign = 'left'; c.textBaseline = 'top';
+      const txt = `STARRING "${star}"`, ax = r.x + inset + gut, ay = r.y + inset + gut;
+      const fsz = fitFont(c, txt, YT, .02 * W, Math.min(.92 * r.w, r.w - 2 * (inset + gut)));
+      const box = { x: ax, y: ay, w: c.measureText(txt).width + .004 * W, h: fsz * 1.3 };
+      if (rectsHit(box, zones.title) || rectsHit(box, zones.sub) || rectsHit(box, pillZone) || (sealZone && circleHit(box, sealZone))) { c.restore(); return; }
+      c.shadowColor = 'rgba(10,4,16,.85)'; c.shadowBlur = .006 * W; c.shadowOffsetX = .0015 * W; c.shadowOffsetY = .0025 * W;
+      c.fillStyle = GOLD; c.fillText(txt, ax, ay); c.restore();
+    };
     if (place) {
       c.save(); c.textAlign = 'left'; c.textBaseline = 'alphabetic';
       const f1 = .016 * W, f2 = .011 * W, pad = .007 * W, bar = .004 * W;
@@ -354,29 +382,22 @@ function drawSignature(c, W, H, k, gut, stripTop) {
       const sc = Math.min(1, maxTextW / Math.max(w1, w2, 1)); a *= sc; b *= sc; w1 *= sc; w2 *= sc;
       const bw = bar + pad * 2 + Math.max(w1, w2), bh = pad * 2 + a + (sub ? b + a * .3 : 0);
       const bx = r.x + inset + gut, by = Math.min(r.y + r.h - inset - gut, stripTop - .006 * W) - bh;
+      const box = { x: bx, y: by, w: bw, h: bh };
+      if (rectsHit(box, zones.title) || rectsHit(box, zones.sub)) { c.restore(); return drawStar(); }   // chip collides with title/subtitle: skip it
       c.fillStyle = 'rgba(8,6,14,.72)'; rrect(c, bx, by, bw, bh, .004 * W); c.fill();
       c.fillStyle = '#ff2f92'; c.save(); rrect(c, bx, by, bw, bh, .004 * W); c.clip(); c.fillRect(bx, by, bar, bh); c.restore();
       c.fillStyle = '#fff'; c.font = `${a}px ${ANTON}`; c.fillText(place, bx + bar + pad, by + pad + a * .88);
       if (sub) { c.fillStyle = GOLD; c.font = `${b}px ${ANTON}`; c.fillText(sub, bx + bar + pad, by + pad + a + a * .3 + b * .88); }
       c.restore();
     }
-    const star = (ch.starring || '').trim();
-    if (star) {
-      c.save(); c.textAlign = 'left'; c.textBaseline = 'top';
-      const txt = `STARRING "${star}"`; fitFont(c, txt, YT, .02 * W, r.w - 2 * (inset + gut));
-      c.shadowColor = 'rgba(10,4,16,.85)'; c.shadowBlur = .006 * W; c.shadowOffsetX = .0015 * W; c.shadowOffsetY = .0025 * W;
-      c.fillStyle = GOLD; c.fillText(txt, r.x + inset + gut, r.y + inset + gut); c.restore();
-    }
+    drawStar();
   });
 
   // wanted pill: top-right inside the frame, left of the seal when both are on
-  const R = .055 * W, sx = Math.min(W - gut - inset - R, Math.max(gut + inset + R, .90 * W)), sy = Math.min(H - R - gut, Math.max(gut + inset + R, .13 * H));
-  if (D.wanted.on) {
+  if (pill) {
+    const { x: px, y: py, w: pw, h: ph, fs, ls, sp, pad, tw } = pill;
     c.save(); c.textAlign = 'left'; c.textBaseline = 'alphabetic';
-    const fs = .018 * W, ls = fs * .22, sp = .0165 * W, ph = .034 * W, pad = .014 * W;
-    c.font = `${fs}px ${ANTON}`; c.letterSpacing = `${ls}px`; const tw = c.measureText('WANTED').width;
-    const pw = pad * 2 + tw + .012 * W + sp * 5;
-    const right = D.seal.on ? sx - R - .008 * W : W - gut - inset, px = right - pw, py = gut + inset + .004 * W;
+    c.font = `${fs}px ${ANTON}`; c.letterSpacing = `${ls}px`;
     c.fillStyle = '#000'; rrect(c, px, py, pw, ph, ph / 2); c.fill();
     c.strokeStyle = 'rgba(232,185,49,.6)'; c.lineWidth = Math.max(1, W * .0012); c.stroke();
     c.fillStyle = CREAM; c.fillText('WANTED', px + pad, py + ph / 2 + fs * .36);
