@@ -398,9 +398,61 @@ function buildStatic() {
   }
   $('#t-quoteOn').checked = state.texts.toggles.quote;
   $('#t-quoteOn').addEventListener('change', (e) => { state.texts.toggles.quote = e.target.checked; render(); });
-  $('#exportAll').onclick = () => {
-    if (typeof window.exportAll === 'function') window.exportAll(); else status('Export arrives in Session 4.');
-  };
+  $('#exportAll').onclick = () => window.exportAll();
+  $('#exportOne').onclick = () => exportPNG(state.size.w, state.size.h);
+}
+
+// ---------- export (Session 4) ----------
+// Renders the full pipeline with {ui:false} onto an offscreen w x h canvas. The layout is re-solved for the
+// target size by temporarily swapping size/panels/titleRect (transforms are size-independent), then restored.
+function renderTo(w, h) {
+  const saved = { size: state.size, panels: state.panels, titleRect: state.titleRect };
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  try {
+    const L = layout(), px = (r) => ({ x: Math.round(r.x * w), y: Math.round(r.y * h), w: Math.round(r.w * w), h: Math.round(r.h * h) });
+    state.size = { ...saved.size, w, h }; state.panels = L.panels.map(px); state.titleRect = L.title ? px(L.title) : null;
+    render(cv.getContext('2d'), w, h, { ui: false });
+  } finally { Object.assign(state, saved); }
+  return cv;
+}
+async function exportPNG(w = state.size.w, h = state.size.h) {
+  const name = `godposter-${w}x${h}.png`;
+  try {
+    await fontsReady;
+    const blob = await new Promise((res) => renderTo(w, h).toBlob(res, 'image/png'));
+    if (!blob) throw new Error('canvas.toBlob returned null');
+    const url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    status(`Saved ${name}`);
+    return { name, w, h, bytes: blob.size };
+  } catch (err) { status(`Export failed for ${name}: ${err.message}`); return null; }
+}
+async function exportAll() {
+  const saved = [];
+  for (const s of Object.values(SIZES)) {
+    const r = await exportPNG(s.w, s.h); if (r) saved.push(r.name);
+    await new Promise((res) => setTimeout(res, 250));      // let the browser accept consecutive downloads
+  }
+  status(saved.length ? `Saved ${saved.join(', ')}` : 'Export failed.');
+  return saved;
+}
+window.exportAll = exportAll; window.exportPNG = exportPNG;
+
+// ---------- starter samples ----------
+const SAMPLE_FILES = ['heroine.jpg', 'neon-man.jpg', 'supercar.jpg', 'palm-road.jpg', 'yacht.jpg'];
+async function loadSamples() {
+  const got = await Promise.all(SAMPLE_FILES.map(async (n) => {
+    try {
+      const r = await fetch(`./samples/${n}`); if (!r.ok) return null;
+      return await loadFile(new File([await r.blob()], n, { type: 'image/jpeg' }));
+    } catch { return null; }
+  }));
+  const ok = got.filter(Boolean);
+  if (ok.length && !state.photos.length) {   // never override photos the user added meanwhile
+    state.photos.push(...ok); autoAssign(); resetTransforms(); syncUI();
+    status(`Loaded ${ok.length} sample photos - replace or remove them any time.`);
+  }
 }
 
 function syncUI() {
@@ -480,6 +532,6 @@ document.fonts.addEventListener('loadingdone', () => render());   // re-render w
 
 // ---------- boot ----------
 buildStatic(); recompute(); resetTransforms(); autoAssign(); syncUI();
-await fontsReady;                                                  // first render waits for the lettering fonts
+await Promise.all([fontsReady, loadSamples()]);                   // first render waits for fonts + starter photos
 render();
-window.GODPOSTER = { fontsReady, state, render, renderDressing: (...a) => renderDressing(...a), LAYOUTS, GRADES, SIZES, setSize, setLayout, addFiles, status };
+window.GODPOSTER = { fontsReady, state, render, renderDressing: (...a) => renderDressing(...a), LAYOUTS, GRADES, SIZES, setSize, setLayout, addFiles, status, exportPNG, exportAll, SAMPLE_FILES };

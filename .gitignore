@@ -3,3 +3,5 @@ output/
 .DS_Store
 Thumbs.db
 *.log
+tests/out-s3/
+tests/out-s4/

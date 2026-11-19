@@ -49,9 +49,9 @@ async function main() {
   // ---- load starter samples through the file input ----
   const doc = await send('DOM.getDocument');
   const { result: { nodeId } } = await send('DOM.querySelector', { nodeId: doc.result.root.nodeId, selector: '#file' });
-  await send('DOM.setFileInputFiles', { nodeId, files: [join(samples, 'boulevard.jpg'), join(samples, 'pier.jpg')] });
-  for (let i = 0; i < 100 && (await ev('GODPOSTER.state.photos.length')) < 2; i++) await new Promise((r) => setTimeout(r, 100));
-  check('2 sample photos loaded via file input', (await ev('GODPOSTER.state.photos.length')) === 2);
+  await send('DOM.setFileInputFiles', { nodeId, files: [join(samples, 'heroine.jpg'), join(samples, 'yacht.jpg')] });
+  for (let i = 0; i < 100 && (await ev('GODPOSTER.state.photos.length')) < 7; i++) await new Promise((r) => setTimeout(r, 100));
+  check('5 bundled + 2 file-input photos loaded', (await ev('GODPOSTER.state.photos.length')) === 7);
   await ev(`GODPOSTER.setLayout('hero-left'); GODPOSTER.setSize('landscape'); document.getElementById('spread').click(); GODPOSTER.render()`);
   check('layout HERO LEFT @1920x1080, no titleRect', await ev(`GODPOSTER.state.layoutId==='hero-left' && GODPOSTER.state.size.w===1920 && GODPOSTER.state.size.h===1080 && GODPOSTER.state.titleRect===null`));
 

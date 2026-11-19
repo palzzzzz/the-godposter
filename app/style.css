@@ -11,7 +11,8 @@ button{font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit;
 .sizes{display:flex;gap:6px;margin-left:auto}
 .tab{background:none;border:1px solid var(--line);padding:7px 12px;border-radius:3px;color:var(--dim)}
 .tab.on{border-color:var(--gold);color:var(--gold);background:#1d1a0d}
-.export{background:var(--pink);border:0;padding:9px 16px;border-radius:3px;font-weight:800;color:#fff;opacity:.55}
+.export{background:var(--pink);border:0;padding:9px 16px;border-radius:3px;font-weight:800;color:#fff;cursor:pointer}
+.export.small{margin-left:auto;padding:6px 14px;font-size:12px}
 .studio{flex:1;min-height:0;display:grid;grid-template-columns:260px 1fr 260px}
 .rail{overflow:auto;padding:14px;background:var(--panel);display:flex;flex-direction:column;gap:10px}
 .rail.left{border-right:1px solid var(--line)}.rail.right{border-left:1px solid var(--line)}
