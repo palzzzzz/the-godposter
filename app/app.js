@@ -45,8 +45,8 @@ const state = {
   transforms: [],        // per panel {dx, dy, zoom}; dx/dy relative to image size
   selectedPanel: 0,
   layoutId: 'hero-left',
-  size: { ...SIZES.landscape },
-  grade: { id: 'vice-sunset', strength: 70, contrast: 110, saturation: 125, grain: 30, vignette: 45 },
+  size: { ...SIZES.portrait },
+  grade: { id: 'golden-hour', strength: 75, contrast: 105, saturation: 115, grain: 25, vignette: 35 },
   texts: {
     title: 'PALM HEAT', subtitle: 'Loyalty is everything', tagline: 'ONE COAST - NO RULES - COMING SOON',
     quote: 'PURE VICE ENERGY', quoteSource: 'THE FAMILY GAZETTE',
@@ -54,14 +54,14 @@ const state = {
   },
   dressing: {
     seal: { on: true, line1: 'FAMILY', line2: 'SEAL' },
-    wanted: { on: true },
+    wanted: { on: false },
     chips: [],           // parallel to panels: {place, time, mood, starring}
   },
 };
 const DEFAULT_CHIPS = [
-  ['NEON MILE', '6:42 PM', 'NO WITNESSES', 'THE GHOST'], ['PORT LEONIDA', '7:15 PM', 'EASY MONEY', 'LA SIRENA'],
-  ['VICE BEACH', '8:03 PM', 'LAST SWIM', 'THE DRIVER'], ['KALAGA STRIP', '9:26 PM', 'FULL THROTTLE', 'THE ACCOUNTANT'],
-  ['THE DOCKS', '5:58 PM', 'QUIET BUSINESS', 'THE VIPER'], ['PALM HEIGHTS', '11:11 PM', 'LOUD NIGHT', 'THE PRIEST'],
+  ['NEON MILE', '6:42 PM', 'NO WITNESSES', 'THE GHOST'], ['PORT LEONIDA', '7:15 PM', 'EASY MONEY', 'THE HEIR'],
+  ['', '', '', 'THE DON'], ['KALAGA STRIP', '9:26 PM', 'FULL THROTTLE', 'THE FIXER'],
+  ['OCEAN DRIVE', '5:58 PM', 'QUIET BUSINESS', 'THE WHEELMAN'], ['PALM HEIGHTS', '11:11 PM', 'LOUD NIGHT', 'THE PRIEST'],
 ].map(([place, time, mood, starring]) => ({ place, time, mood, starring }));
 state.dressing.chips = DEFAULT_CHIPS.map((c) => ({ ...c }));
 const emptyChip = () => ({ place: '', time: '', mood: '', starring: '' });
@@ -368,7 +368,7 @@ function drawSignature(c, W, H, k, gut, stripTop, zones = {}) {
       c.save(); c.textAlign = 'left'; c.textBaseline = 'top';
       const txt = `STARRING "${star}"`, ax = r.x + inset + gut, ay = r.y + inset + gut;
       const fsz = fitFont(c, txt, YT, .02 * W, Math.min(.92 * r.w, r.w - 2 * (inset + gut)));
-      const box = { x: ax, y: ay, w: c.measureText(txt).width + .004 * W, h: fsz * 1.3 };
+      const box = { x: ax, y: ay, w: c.measureText(txt).width + .004 * W, h: fsz * 1.1 };
       if (rectsHit(box, zones.title) || rectsHit(box, zones.sub) || rectsHit(box, pillZone) || (sealZone && circleHit(box, sealZone))) { c.restore(); return; }
       c.shadowColor = 'rgba(10,4,16,.85)'; c.shadowBlur = .006 * W; c.shadowOffsetX = .0015 * W; c.shadowOffsetY = .0025 * W;
       c.fillStyle = GOLD; c.fillText(txt, ax, ay); c.restore();
@@ -614,7 +614,17 @@ async function exportAll() {
 window.exportAll = exportAll; window.exportPNG = exportPNG;
 
 // ---------- starter samples ----------
-const SAMPLE_FILES = ['heroine.jpg', 'neon-man.jpg', 'supercar.jpg', 'palm-road.jpg', 'yacht.jpg', 'don.jpg', 'fixer.jpg', 'wheelman.jpg'];
+// cast first (they fill HERO LEFT in order), scenery after
+const SAMPLE_FILES = ['heroine.jpg', 'neon-man.jpg', 'don.jpg', 'fixer.jpg', 'wheelman.jpg', 'supercar.jpg', 'palm-road.jpg', 'yacht.jpg'];
+// Default ensemble cover: per-panel pan/zoom (HERO LEFT, portrait) chosen so every face, the Don's pistol and
+// cigarette, and the Wheelman's bandana sit inside their panels clear of the title, seal and chips.
+const COVER_VIEWS = [
+  { dx: 0, dy: 0, zoom: 1 },      // THE GHOST
+  { dx: 0, dy: 0, zoom: 1 },      // THE HEIR
+  { dx: -.03, dy: 0, zoom: 1 },   // THE DON: full-height window, panned left so the lit cigarette clears the edge
+  { dx: 0, dy: 0, zoom: 1 },      // THE FIXER
+  { dx: -.1, dy: -.1, zoom: 1.1 }, // THE WHEELMAN: panned right so the face clears the title's last letter
+];
 async function loadSamples() {
   const got = await Promise.all(SAMPLE_FILES.map(async (n) => {
     try {
@@ -624,7 +634,9 @@ async function loadSamples() {
   }));
   const ok = got.filter(Boolean);
   if (ok.length && !state.photos.length) {   // never override photos the user added meanwhile
-    state.photos.push(...ok); autoAssign(); resetTransforms(); syncUI();
+    state.photos.push(...ok); autoAssign(); resetTransforms();
+    if (state.layoutId === 'hero-left') COVER_VIEWS.forEach((v, i) => { if (state.transforms[i]) state.transforms[i] = { ...v }; });
+    syncUI();
     status(`Loaded ${ok.length} sample photos - replace or remove them any time.`);
   }
 }
