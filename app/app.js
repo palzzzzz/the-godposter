@@ -614,7 +614,7 @@ async function exportAll() {
 window.exportAll = exportAll; window.exportPNG = exportPNG;
 
 // ---------- starter samples ----------
-const SAMPLE_FILES = ['heroine.jpg', 'neon-man.jpg', 'supercar.jpg', 'palm-road.jpg', 'yacht.jpg'];
+const SAMPLE_FILES = ['heroine.jpg', 'neon-man.jpg', 'supercar.jpg', 'palm-road.jpg', 'yacht.jpg', 'don.jpg', 'fixer.jpg', 'wheelman.jpg'];
 async function loadSamples() {
   const got = await Promise.all(SAMPLE_FILES.map(async (n) => {
     try {
